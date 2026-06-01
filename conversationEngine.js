@@ -7,7 +7,7 @@ const TIMING = {
   normalMin: parseInt(process.env.MIN_DELAY_MS, 10) || 15000,
   normalMax: parseInt(process.env.MAX_DELAY_MS, 10) || 60000,
   fastMin: parseInt(process.env.MIN_FAST_DELAY_MS, 10) || 10000,
-  fastMax: parseInt(process.env.MAX_FAST_DELAY_MS, 10) || 45000,
+  fastMax: parseInt(process.env.MAX_FAST_DELAY_MS, 10) || 60000,
   fastWindow: parseInt(process.env.FAST_REPLY_WINDOW_MS, 10) || 120000,
   minGapAfterBot: parseInt(process.env.MIN_MESSAGES_BEFORE_OPTIONAL, 10) || 1,
   debounceMs: parseInt(process.env.MESSAGE_DEBOUNCE_MS, 10) || 3500,
@@ -119,13 +119,6 @@ function createEngine({ config, ai, client, helpers }) {
     const inFastWindow =
       queue.lastBotReplyAt > 0 && Date.now() - queue.lastBotReplyAt < TIMING.fastWindow;
 
-    if (inFastWindow) {
-      const replyToMe = msg ? await isReplyToMe(msg) : false;
-      if (replyToMe || isCalledByName(body) || isTagged(msg)) {
-        return { type: 'fast', reason: 'hizli muhabbet' };
-      }
-    }
-
     const sinceBot = historyStore.countMessagesSinceBot(groupId);
     if (sinceBot < TIMING.minGapAfterBot) {
       return { type: 'none', reason: `az once yazildi (${sinceBot} mesaj arasi)` };
@@ -149,6 +142,21 @@ function createEngine({ config, ai, client, helpers }) {
       return randomBetween(TIMING.fastMin, TIMING.fastMax);
     }
     return randomBetween(TIMING.normalMin, TIMING.normalMax);
+  }
+
+  function applyFastTimingIfNeeded(groupId, trigger) {
+    if (trigger.type === 'none') return trigger;
+
+    const queue = getQueue(groupId);
+    const inFastWindow =
+      queue.lastBotReplyAt > 0 && Date.now() - queue.lastBotReplyAt < TIMING.fastWindow;
+
+    if (!inFastWindow) return trigger;
+
+    return {
+      type: 'fast',
+      reason: `yazdiktan sonra 2dk icinde (${trigger.reason})`,
+    };
   }
 
   function invalidatePending(groupId) {
@@ -257,7 +265,8 @@ function createEngine({ config, ai, client, helpers }) {
 
     invalidatePending(groupId);
 
-    const trigger = await classifyMessage(msg, body, groupId);
+    let trigger = await classifyMessage(msg, body, groupId);
+    trigger = applyFastTimingIfNeeded(groupId, trigger);
 
     if (debug) {
       console.log(`[DEBUG] Tetik: ${trigger.type} (${trigger.reason}) | ${body}`);
