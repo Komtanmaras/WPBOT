@@ -48,6 +48,13 @@ function formatForPrompt(history) {
   return history.map((m) => `${m.sender}: ${m.body}`).join('\n');
 }
 
+function setGroupHistory(groupId, entries) {
+  const data = load();
+  data[groupId] = entries.slice(-maxMessages);
+  save(data);
+  return data[groupId];
+}
+
 function countMessagesSinceBot(groupId) {
   const history = getHistory(groupId);
   let count = 0;
@@ -60,6 +67,7 @@ function countMessagesSinceBot(groupId) {
 
 module.exports = {
   addMessage,
+  setGroupHistory,
   getHistory,
   getLastMessages,
   formatForPrompt,

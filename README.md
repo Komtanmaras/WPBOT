@@ -68,6 +68,41 @@ Terminalde bir QR kod goruntulenecektir. Telefonunuzdan WhatsApp > Bagli Cihazla
 
 Baglanti basarili oldugunda bot calismaya baslayacaktir.
 
+## PM2 ve guncelleme sonrasi baslangic
+
+Restart sirasinda kacirilan mesajlar icin `STARTUP_MODE` kullanin:
+
+| Mod | Ne yapar |
+|-----|----------|
+| `idle` | Sadece yeni mesajlari dinler (varsayilan) |
+| `sync` | Son mesajlari gecmise yazar, cevap vermez |
+| `reply_last` | Son gelen mesaji okur, normal kurallarla cevap planlar |
+
+**.env ile (pm2 restart icin):**
+
+```env
+STARTUP_MODE=reply_last
+STARTUP_MAX_AGE_MS=600000
+```
+
+```bash
+pm2 restart bot.js --update-env
+```
+
+**Tek seferlik:**
+
+```bash
+npm run start:reply-last
+node bot.js --startup reply_last
+```
+
+**PM2 ecosystem:**
+
+```bash
+pm2 start ecosystem.config.cjs --env restart
+pm2 restart wbot --update-env
+```
+
 ## Mesaj algilanmiyorsa
 
 1. Botu baslatin; terminalde tum gruplarin adi ve ID'si listelenir.

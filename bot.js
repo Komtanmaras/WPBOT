@@ -11,6 +11,7 @@ const historyStore = require('./historyStore');
 const { createEngine, TIMING } = require('./conversationEngine');
 const { createAiClient, loadAiOptionsFromEnv } = require('./aiClient');
 const { normalizePhone } = require('./personas');
+const { runStartup, parseStartupMode } = require('./startup');
 
 historyStore.setMaxMessages(parseInt(process.env.HISTORY_SIZE, 10) || 15);
 
@@ -240,6 +241,21 @@ client.on('ready', async () => {
       .forEach((g) => console.log(`  - "${g.name}" | ${g.id?._serialized || g.id}`));
   } catch (err) {
     console.log('[BOT] Grup listesi alinamadi:', err.message);
+  }
+
+  console.log(`[BOT] Baslangic modu: ${parseStartupMode()}`);
+
+  try {
+    await runStartup({
+      client,
+      config,
+      engine,
+      isTargetGroup,
+      getSenderLabel,
+      resolveAuthorPhone,
+    });
+  } catch (err) {
+    console.error('[STARTUP] Hata:', err.message);
   }
 });
 

@@ -5,6 +5,8 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
+    "start:sync": "node bot.js --startup sync",
+    "start:reply-last": "node bot.js --startup reply_last",
     "dev": "node bot.js"
   },
   "keywords": ["whatsapp", "bot", "deepseek", "ai"],

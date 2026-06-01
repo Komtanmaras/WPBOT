@@ -300,7 +300,12 @@ function createEngine({ config, ai, client, helpers }) {
     queue.lastBotReplyAt = Date.now();
   }
 
-  return { onIncomingMessage, onBotSentMessage };
+  function setLastBotReplyAt(groupId, timeMs) {
+    const queue = getQueue(groupId);
+    queue.lastBotReplyAt = timeMs || Date.now();
+  }
+
+  return { onIncomingMessage, onBotSentMessage, setLastBotReplyAt };
 }
 
 module.exports = { createEngine, TIMING };
