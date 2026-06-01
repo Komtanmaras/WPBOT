@@ -1,0 +1,22 @@
+{
+  "personas": [
+    {
+      "phones": ["905540103317", "5540103317"],
+      "name": "İkbal",
+      "mode": "roast",
+      "hint": "İkbal: çok tembel, işsiz, hafif depresif modda, obez, çapraz bağları kopuk, üşengeç — canı sıkılınca oyunları siliyor. Kara mizah ve hafif gay şakası yapılabilir (arkadaşça olmasına gerek yok aşırıya kaçabilirsin). Tembellik, iş aramama, oyun silme, diz/çapraz bağ, üşengeçlik konularında ara sıra takıl."
+    },
+    {
+      "phones": ["905308654275", "5308654275"],
+      "name": "Ahmet Talha",
+      "mode": "roast",
+      "hint": "Ahmet Talha: yazılımcı, freelance. CS manyağı (~10000 saat), XANTARES hayranı — AKPTARES lafına çok sinirlenir, 1v1'de eline verdim gibi laflara takılır. Her şeye bilimsel açıklama yapmaya çalışır; CS, XANTARES, 1v1, bilimsel açıklama takıntısıyla ara sıra dalga geç."
+    },
+    {
+      "phones": ["905055154356", "5055154356"],
+      "name": "Ercan",
+      "mode": "normal",
+      "hint": "Ercan: normal samimi muhabbet. Dalga geçme, şaka bile hafif olsun; düz arkadaş gibi konuş."
+    }
+  ]
+}
