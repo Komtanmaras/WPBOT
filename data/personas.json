@@ -17,6 +17,102 @@
       "name": "Ercan",
       "mode": "normal",
       "hint": "Ercan: normal samimi muhabbet. Dalga geçme, şaka bile hafif olsun; düz arkadaş gibi konuş."
+    },
+    {
+      "phones": ["905531024700", "5531024700"],
+      "name": "Ahmed Zahid Yapıcı",
+      "mode": "roast",
+      "hint": "Ahmed Zahid Yapıcı: her oyunu en iyi bildiğinizanneder ama korkarak geri çekilerek oynar. Saçma sapan oyunlar oynar, CS'de çifte baret almayana söver. Valorant/CS'de saldırıdayken bile 'bekleyin gelsinler' der. Pusmadan oyun oynayamaz. Her oyunun 1000 saatlik videosunu izler, 1 saat ancak oynar. Herhangi bir işe başlamaktan korkar — önce saatlerce video izler. Her işi kendisi en iyi biliyor sanar, tartışmaya gelemez; 'Tamam kanka her şeyi en çok sen biliyon' gibi laflara çok gıcık olur. Kara mizah sonuna kadar serbest; yaratıcı, arkadaşça roast — her mesajda değil, oyun/CS/Valorant/tembellik/video izleme konularında özellikle takıl.Ankaralı"
+    },
+    {
+      "phones": ["905414252622", "5414252622"],
+      "name": "Bekir Burak Simitçi",
+      "mode": "roast",
+      "hint": "Bekir Burak Simitçi: kendini 'Allah'ın aslanı', dinin en büyük savunucusu sanır; radikal islamcı, vahabi/neo selefi vibe. Hep agresif, hep sinirli. Mevlana'yı çok sever (ironi — selefi ama Mevlana hayranı). Bidat konularında takıl. Konyalı olmasıyla dalga geç; Arap yemeklerini aşırı sever. Abisi Mehmet İlkay var — çok seviyor, onunla da dalga geç (akıl hocası vahhabi gibi). Arkadaşça, yaratıcı roast; her mesajda değil, din/tartışma/Konya/yemek/Mevlana/bidat konularında özellikle."
+    },
+    {
+      "phones": ["905535131897", "5535131897"],
+      "name": "Mehmet Emin Buğra Tursun",
+      "mode": "roast",
+      "hint": "Mehmet Emin Buğra Tursun: 'enayi' denilmesine çok sinir olur — bilerek ara sıra enayi de. Yozgatlı; Yozgat'la dalga geç (dünyanın en kötü şehri, çöl gibi). Kripto dolandırılmışlığı var: Bitcoin milyoneri sanır ama Solana alırken 100 dolar dolandırılmış. Yaşı büyük olmasına rağmen yurttakilere güçü yetmiyor. Türkçü, ülkücü, milliyetçi — sonuna kadar dalga geç; aslında anne tarafından Kürt olduğu söylenebilir (ironi). İki yıl İngilizce hazırlık okudu; denizaltı projesinden bahsedip dalga geç (hiç yapamadılar). Çok ağır, yaratıcı arkadaşça roast serbest; her mesajda değil."
+    },
+    {
+      "phones": ["905456936360", "5456936360"],
+      "name": "Yusuf Akbaş",
+      "mode": "normal",
+      "hint": "Yusuf Akbaş: normal samimi muhabbet. Kürt ama Kürtçe bilmez, Aydın'da doğmuş, her yerde Kürdüm demez — bunları bil ama dalga geçme, düz konuş. Gizli sigara tiryakisi; sigara/kötü alışkanlık konularında hafif, kırıcı olmayan şaka olabilir ama genel ton arkadaşça ve normal."
+    },
+    {
+      "phones": ["905364618945", "5364618945"],
+      "name": "Yusuf Toker",
+      "mode": "roast",
+      "hint": "Yusuf Toker: hayatsız, 4-5 oyunu deli gibi oynamış, kendini zeki sanıyor. Herkese gülüyor ama içten herkese üstten bakıyor. Biri bir konuda ondan daha iyi olunca deliriyor. Emine'ye çok zulmediyor — onunla da dalga geç. Çok uzun boylu; boyu ve '20 cm' övünmesiyle takıl. Yaratıcı arkadaşça roast; oyun, ego, boy/kibir konularında özellikle; her mesajda değil."
+    },
+    {
+      "phones": ["905443421896", "5443421896"],
+      "name": "İso (İsmail Dağtaş)",
+      "mode": "roast",
+      "hint": "İso (İsmail Dağtaş): her şeyin fotoğrafını/videosunu çeker, sanki çok önemliymiş gibi paylaşır ve insanlara atar — kimsenin umurunda değilmiş gibi. Zenginliğiyle dalga geç; çok pahalı giyinir, bir parfüme dünya para bayar. Gördüğü her kıza aşık olur, kızlarla çok takılır, kızlara para yedirir. Karamürsel'i dünyanın en güzel yeri sanar, çok gezer. Yaratıcı arkadaşça roast; foto/video paylaşımı, lüks, parfüm, kızlar, Karamürsel, gezmek konularında özellikle; her mesajda değil."
+    },
+    {
+      "phones": ["905535240739", "5535240739"],
+      "name": "Abdullah Güven",
+      "mode": "normal",
+      "hint": "Abdullah Güven: Konyalı. Normal samimi muhabbet — olabildiğince düz konuş, çok şaka yapma. Sarışın olmasıyla ara sıra hafif takıl; gördüğü bütün kızlara aşık olur (bunu da hafif geç). Gözleri çok yüksek numara, gözlüğüyle dalga geçilebilir ama kırıcı olma; genel ton sakin ve arkadaşça."
+    },
+    {
+      "phones": ["905526962443", "5526962443"],
+      "name": "Burak Şahin",
+      "mode": "normal",
+      "hint": "Burak Şahin: Gümüşhaneli. Arkadaşça samimi muhabbet — dalga geçme, düz konuş. Ağzını çok tutamaz; ton biraz sert, ara sıra hafif küfür/bazdır olabilir (abartma). Gümüşhane'yle hafif geçilebilir. Genel olarak sıcak, laubali arkadaş gibi yaz."
+    },
+    {
+      "phones": ["905399432620", "5399432620"],
+      "name": "Enes Erbilen",
+      "mode": "normal",
+      "hint": "Enes Erbilen: normal samimi muhabbet — çok dalga geçme, düz konuş. Ara sıra tadında hafif gay şakası yapılabilir (abartma). Saçları renkli — onunla hafif takıl ama kırıcı olma. Genel ton arkadaşça."
+    },
+    {
+      "phones": ["905061635056", "5061635056"],
+      "name": "Emir Numanoğlu",
+      "mode": "roast",
+      "hint": "Emir Numanoğlu: yalan uydurma makinesi — her şeyi abartır, uydurur. Telefona cevap vermez. Eski sekülerci, şimdi Müslüman ayağına yeni takılmış (ironi). Eskiden çok kızın canını yakmış. Hiçbir yere zamanında gelmez, hep geç kalır. İşsiz, boş gezenin boş kalfası; bir yandan 'savunma sanayine yön veren adam' gibi konuşur (ironik). Bekarlığıyla dalga geç. Yaratıcı arkadaşça roast; yalan, geç kalma, dönüşüm, kızlar, işsizlik, savunma sanayi, bekarlık konularında özellikle; her mesajda değil."
+    },
+    {
+      "phones": ["905347011765", "5347011765"],
+      "name": "Hasan Demir",
+      "mode": "normal",
+      "hint": "Hasan Demir: eski fitness arkadaşı, çok iyi/kral adam — TÜBİTAK'ta çalışıyor. Mümkün olduğunca saygılı ol; dalga geçme, normal ve sıcak konuş. Samimi ama hürmetli ton."
+    },
+    {
+      "phones": ["905318494130", "5318494130"],
+      "name": "Hüseyin Teymurzade",
+      "mode": "normal",
+      "hint": "Hüseyin Teymurzade: Azerbaycanlı, gruptakilerden daha genç. Normal samimi muhabbet — Azerbaycanlı/mülteci diye hafif takıl (abartma, kırıcı olma). Çok iyi kodlama biliyor; yazılım/kod konularında saygılı ol. Genel ton arkadaşça."
+    },
+    {
+      "phones": ["905437367716", "5437367716"],
+      "name": "Memili",
+      "mode": "normal",
+      "hint": "Memili: Baykar'da çalışıyor, işler çok yoğun — çok çalışıyor; Baykar/yoğunlukla hafif takıl. Hedefi faydalı bir mühendis olmak; bununla da hafif dalga geç. Çok çalışkan, Marmara mezunu, mühendis. Tek başına İstanbul'da yaşıyor; 'eve karı atıyor' tarzı hafif şaka olabilir. Genel ton normal arkadaşça muhabbet, çok ağır roast yok."
+    },
+    {
+      "phones": ["905438403051", "5438403051"],
+      "name": "Dadaş (Tayyip Okumuş)",
+      "mode": "roast",
+      "hint": "Dadaş (Tayyip Okumuş): Erzurumlu — Erzurum'la çok ağır dalga geç (Erzurum'a laf atınca çok sinirlenir, bilerek yap). Çok Avrupa gezmiş ama hâlâ cahil/zır cahil. Yakın tarihte mezun olacak. Nene/hatuna laf atınca çok sinirlenir — bilerek ara sıra. Saçları eskiden uzundu şimdi kestirdi, 'yeni adam' oldu diye takıl. '3 gram' şakası yapılabilir. Çok ağır yaratıcı arkadaşça roast serbest; her mesajda değil."
+    },
+    {
+      "phones": ["905366799702", "5366799702"],
+      "name": "Muhammed Zahid Demiral",
+      "mode": "normal",
+      "hint": "Muhammed Zahid Demiral: normal samimi muhabbet. Dalga geçme, düz arkadaş gibi konuş."
+    },
+    {
+      "phones": ["905394867801", "5394867801"],
+      "name": "Yusuf Ziya Yapıcı",
+      "mode": "normal",
+      "hint": "Yusuf Ziya Yapıcı: normal samimi muhabbet. Dalga geçme, düz arkadaş gibi konuş."
     }
   ]
 }

@@ -10,8 +10,9 @@ if (process.env.DEBUG !== 'true') {
 const historyStore = require('./historyStore');
 const { createEngine, TIMING } = require('./conversationEngine');
 const { createAiClient, loadAiOptionsFromEnv } = require('./aiClient');
-const { normalizePhone } = require('./personas');
+const { normalizePhone, findPersona } = require('./personas');
 const { runStartup, parseStartupMode } = require('./startup');
+const logger = require('./logger');
 
 historyStore.setMaxMessages(parseInt(process.env.HISTORY_SIZE, 10) || 15);
 
@@ -224,26 +225,24 @@ client.on('ready', async () => {
       isReplyToMe,
       isFollowUpDirectedAtMe,
       isGroupSocialOpener,
-      debug: config.debug,
     },
   });
 
-  console.log(`[BOT] Baglandi. Rol: ${config.userName}`);
-  console.log(`[BOT] Grup: ${config.targetGroupName || config.targetGroupId}`);
-  console.log(
-    `[BOT] Gecikme normal: ${TIMING.normalMin / 1000}s - ${TIMING.normalMax / 1000}s | hizli: ${TIMING.fastMin / 1000}s - ${TIMING.fastMax / 1000}s`,
+  logger.info(`[BOT] Baglandi | Rol: ${config.userName} | Grup: ${config.targetGroupName || config.targetGroupId}`);
+  logger.info(
+    `[BOT] Gecikme normal: ${TIMING.normalMin / 1000}s-${TIMING.normalMax / 1000}s | hizli: ${TIMING.fastMin / 1000}s-${TIMING.fastMax / 1000}s | DEBUG: ${config.debug}`,
   );
 
   try {
     const chats = await client.getChats();
     chats
       .filter((c) => c.isGroup)
-      .forEach((g) => console.log(`  - "${g.name}" | ${g.id?._serialized || g.id}`));
+      .forEach((g) => logger.info(`[GRUP] "${g.name}" | ${g.id?._serialized || g.id}`));
   } catch (err) {
-    console.log('[BOT] Grup listesi alinamadi:', err.message);
+    logger.warn('[BOT] Grup listesi alinamadi:', err.message);
   }
 
-  console.log(`[BOT] Baslangic modu: ${parseStartupMode()}`);
+  logger.info(`[BOT] Baslangic modu: ${parseStartupMode()}`);
 
   try {
     await runStartup({
@@ -255,16 +254,16 @@ client.on('ready', async () => {
       resolveAuthorPhone,
     });
   } catch (err) {
-    console.error('[STARTUP] Hata:', err.message);
+    logger.error('[STARTUP] Hata:', err.message);
   }
 });
 
 client.on('auth_failure', (msg) => {
-  console.error('[HATA] Kimlik dogrulama basarisiz:', msg);
+  logger.error('[HATA] Kimlik dogrulama basarisiz:', msg);
 });
 
 client.on('disconnected', (reason) => {
-  console.log('[BOT] Baglanti koptu:', reason);
+  logger.warn('[BOT] Baglanti koptu:', reason);
 });
 
 async function processGroupMessage(msg) {
@@ -286,6 +285,16 @@ async function processGroupMessage(msg) {
       authorPhone,
       timestamp: Date.now(),
     });
+
+    if (!msg.fromMe) {
+      const preview = body.length > 100 ? `${body.slice(0, 100)}…` : body;
+      const persona = authorPhone ? findPersona(authorPhone) : null;
+      const personaTag = persona ? ` | profil: ${persona.name}` : '';
+      logger.info(`[MESAJ] ${sender}: ${preview}${personaTag}`);
+    } else {
+      const preview = body.length > 100 ? `${body.slice(0, 100)}…` : body;
+      logger.info(`[BEN] ${preview}`);
+    }
   }
 
   if (msg.fromMe) {
@@ -305,9 +314,9 @@ client.on('message_create', async (msg) => {
   try {
     await processGroupMessage(msg);
   } catch (error) {
-    console.error('[HATA]', error.message);
+    logger.error('[HATA]', error.message);
   }
 });
 
-console.log('[BOT] Baslatiliyor...');
+logger.info('[BOT] Baslatiliyor...');
 client.initialize();

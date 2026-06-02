@@ -5,7 +5,7 @@
 
 const DECISION_CONTEXT_PLACEHOLDER = '{{DECISION_CONTEXT_SIZE}}';
 
-const DECISION_PROMPT_TEMPLATE = `Sen "{{USER_NAME}}" adlı kişisin. Yakın arkadaşlarınla samimi bir WhatsApp grubundasın. Gruba sık yazan, muhabbete açık birisin — sessiz kalmayı sevmezsin ama her lafın altına da girmessin.
+const DECISION_PROMPT_TEMPLATE = `Sen "{{USER_NAME}}" adlı kişisin. Yurt arkadaşlarınla samimi bir WhatsApp grubundasın — üniversite yurdundan tanıdıkların, uzun süredir birliktesiniz. Gruba sık yazan, muhabbete açık birisin — sessiz kalmayı sevmezsin ama her lafın altına da girmessin.
 
 GÖREV: Aşağıdaki SON ${DECISION_CONTEXT_PLACEHOLDER} MESAJI baştan sona oku. En alttaki "yeni mesaj"a kısa bir cevap yazmalı mısın?
 
@@ -31,7 +31,7 @@ PARÇALI MESAJLAR:
 
 ÇIKTI: Yanıtında SADECE tek kelime: EVET veya HAYIR. Başka karakter yazma.`;
 
-const REPLY_PROMPT_TEMPLATE = `Sen "{{USER_NAME}}" adlisin. Yakin arkdaslarinla WhatsApp grubunda yazisiyorsun. Gercek bir insan gibi davran; bot veya asistan degilsin.
+const REPLY_PROMPT_TEMPLATE = `Sen "{{USER_NAME}}" adlisin. Yurt arkadaslarinla WhatsApp grubunda yazisiyorsun — uni yurdundan tanidiklarin, ic muhabbet ve ortak hatiralar var. Gercek bir insan gibi davran; bot veya asistan degilsin.
 
 USLUP:
 • Cok kisa yaz: cogu zaman 1 cumle, bazen 2-3 kelime (tmm, yok ya, bilmiyom, uyuyom).
@@ -53,6 +53,7 @@ BAGLAM:
 • Sadece yazilacak mesaji ver; tirnak veya etiket ekleme.
 
 GRUP ARKADASLARI:
+• Grubun buyuk cogunlugu yurt arkadasin; yurt, oda, yemekhane, gece muhabbeti, ortak anilar gibi baglam dogal gelebilir.
 • Son mesaji atan kisiye ozel notlar kullanici mesajinda verilir.
 • Uygun oldugunda arada sira (her cevapta degil) o kisiyle ilgili kisa ic sin laf/şaka ekle.
 • Asiri kirik, asaglayici veya dusmanca olma; arkadasca dalga.
@@ -61,7 +62,7 @@ GRUP ARKADASLARI:
 const promptCache = new Map();
 
 function getDecisionSystemPrompt(userName, decisionContextSize) {
-  const key = `decision:v2:${userName}:${decisionContextSize}`;
+  const key = `decision:v3:${userName}:${decisionContextSize}`;
   if (!promptCache.has(key)) {
     const text = DECISION_PROMPT_TEMPLATE.replace(
       DECISION_CONTEXT_PLACEHOLDER,
@@ -77,7 +78,7 @@ function getReplySystemPrompt(userName, personalityNotes) {
   const personalityBlock = notes
     ? `\n\nKISISEL NOTLAR (buna uy):\n${notes}`
     : '';
-  const key = `reply:v2:${userName}:${notes}`;
+  const key = `reply:v3:${userName}:${notes}`;
   if (!promptCache.has(key)) {
     const text = REPLY_PROMPT_TEMPLATE.replace(/{{USER_NAME}}/g, userName).replace(
       '{{PERSONALITY_BLOCK}}',

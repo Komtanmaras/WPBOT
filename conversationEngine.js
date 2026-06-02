@@ -2,6 +2,7 @@ const historyStore = require('./historyStore');
 const { getDecisionSystemPrompt, getReplySystemPrompt } = require('./prompts');
 const { humanizeReply, clampLength } = require('./humanize');
 const { getPersonaReplyBlock } = require('./personas');
+const logger = require('./logger');
 
 const TIMING = {
   normalMin: parseInt(process.env.MIN_DELAY_MS, 10) || 15000,
@@ -53,7 +54,6 @@ function createEngine({ config, ai, client, helpers }) {
     isReplyToMe,
     isFollowUpDirectedAtMe,
     isGroupSocialOpener,
-    debug,
   } = helpers;
 
   const decisionSystemPrompt = getDecisionSystemPrompt(
@@ -93,13 +93,11 @@ function createEngine({ config, ai, client, helpers }) {
 
       const join = parseJoinDecision(raw);
 
-      if (debug) {
-        console.log(`[DEBUG] Katilim AI: "${raw}" → ${join ? 'EVET' : 'HAYIR'}`);
-      }
+      logger.debug(`Katilim AI: "${raw}" → ${join ? 'EVET' : 'HAYIR'}`);
 
       return join;
     } catch (err) {
-      if (debug) console.log('[DEBUG] Katilim karari alinamadi:', err.message);
+      logger.debug('Katilim karari alinamadi:', err.message);
       return false;
     }
   }
@@ -125,7 +123,7 @@ function createEngine({ config, ai, client, helpers }) {
     }
 
     if (isGroupSocialOpener(body) && sinceBot >= 1) {
-      if (debug) console.log('[DEBUG] Grup selami — dogrudan katilim');
+      logger.debug('Grup selami — dogrudan katilim');
       return { type: 'optional', reason: 'grup selami/sohbet' };
     }
 
@@ -164,6 +162,7 @@ function createEngine({ config, ai, client, helpers }) {
     if (queue.timer) {
       clearTimeout(queue.timer);
       queue.timer = null;
+      logger.info('[IPTAL] Bekleyen cevap iptal edildi (yeni mesaj)');
     }
     queue.generation++;
   }
@@ -172,7 +171,7 @@ function createEngine({ config, ai, client, helpers }) {
     const queue = getQueue(groupId);
 
     if (generation !== queue.generation) {
-      if (debug) console.log('[DEBUG] Gecersiz nesil, gonderilmiyor');
+      logger.debug('Gecersiz nesil, gonderilmiyor');
       return;
     }
 
@@ -197,9 +196,7 @@ function createEngine({ config, ai, client, helpers }) {
 
       if (generation !== queue.generation) return;
 
-      if (debug && personaBlock) {
-        console.log('[DEBUG] Kisi profili prompta eklendi');
-      }
+      logger.debug(personaBlock ? 'Kisi profili prompta eklendi' : 'Kisi profili yok');
 
       let replyText = await ai.reply([
         { role: 'system', content: replySystemPrompt },
@@ -210,19 +207,19 @@ function createEngine({ config, ai, client, helpers }) {
       ]);
 
       if (generation !== queue.generation) {
-        if (debug) console.log('[DEBUG] API sonrasi yeni mesaj geldi, iptal');
+        logger.debug('API sonrasi yeni mesaj geldi, iptal');
         return;
       }
 
       if (!replyText) {
-        console.log('[!] Bos cevap.');
+        logger.warn('[!] Bos cevap, gonderilmedi.');
         return;
       }
 
       replyText = humanizeReply(replyText);
       replyText = clampLength(replyText, TIMING.replyMaxChars);
 
-      console.log(`[<] ${replyText}`);
+      logger.info(`[CEVAP] ${replyText}`);
       await client.sendMessage(groupId, replyText);
 
       historyStore.addMessage(groupId, {
@@ -233,7 +230,7 @@ function createEngine({ config, ai, client, helpers }) {
       });
 
       queue.lastBotReplyAt = Date.now();
-      console.log('[+] Gonderildi.\n');
+      logger.info('[GONDERILDI] Mesaj gruba yazildi.');
     } finally {
       queue.processing = false;
     }
@@ -244,14 +241,15 @@ function createEngine({ config, ai, client, helpers }) {
     const generation = queue.generation;
     const delayMs = pickDelay(trigger.type);
 
-    console.log(`\n[+] Cevap planlandi (${trigger.type}: ${trigger.reason})`);
-    console.log(`[+] Mesaj: ${body}`);
-    console.log(`[*] ${(delayMs / 1000).toFixed(1)} sn sonra gonderilecek...`);
+    const preview = body.length > 80 ? `${body.slice(0, 80)}…` : body;
+    logger.info(
+      `[PLAN] ${trigger.type} (${trigger.reason}) | ${(delayMs / 1000).toFixed(1)} sn sonra | "${preview}"`,
+    );
 
     queue.timer = setTimeout(() => {
       queue.timer = null;
       generateAndSend(groupId, generation).catch((err) => {
-        console.error('[HATA] Gonderim:', err.message);
+        logger.error('[HATA] Gonderim:', err.message);
       });
     }, delayMs);
   }
@@ -268,11 +266,12 @@ function createEngine({ config, ai, client, helpers }) {
     let trigger = await classifyMessage(msg, body, groupId);
     trigger = applyFastTimingIfNeeded(groupId, trigger);
 
-    if (debug) {
-      console.log(`[DEBUG] Tetik: ${trigger.type} (${trigger.reason}) | ${body}`);
-    }
+    logger.debug(`Tetik: ${trigger.type} (${trigger.reason}) | ${body}`);
 
-    if (trigger.type === 'none') return;
+    if (trigger.type === 'none') {
+      logger.info(`[ATLANDI] ${trigger.reason}`);
+      return;
+    }
 
     await scheduleReply(groupId, body, trigger);
   }
@@ -290,7 +289,7 @@ function createEngine({ config, ai, client, helpers }) {
     queue.debounceTimer = setTimeout(() => {
       queue.debounceTimer = null;
       processAfterDebounce(groupId).catch((err) => {
-        console.error('[HATA] Islem:', err.message);
+        logger.error('[HATA] Islem:', err.message);
       });
     }, TIMING.debounceMs);
   }

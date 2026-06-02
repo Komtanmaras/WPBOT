@@ -4,6 +4,7 @@
  */
 
 const historyStore = require('./historyStore');
+const logger = require('./logger');
 
 const MODES = ['idle', 'sync', 'reply_last'];
 
@@ -47,33 +48,33 @@ async function runStartup(ctx) {
 
   const mode = parseStartupMode();
   if (!isValidMode(mode)) {
-    console.log(`[STARTUP] Gecersiz mod: ${mode}. Kullan: ${MODES.join(', ')}`);
+    logger.warn(`[STARTUP] Gecersiz mod: ${mode}. Kullan: ${MODES.join(', ')}`);
     return;
   }
 
   if (mode === 'idle') {
-    console.log('[STARTUP] Mod: idle (sadece yeni mesajlar)');
+    logger.info('[STARTUP] Mod: idle (sadece yeni mesajlar)');
     return;
   }
 
-  console.log(`[STARTUP] Mod: ${mode}`);
+  logger.info(`[STARTUP] Mod: ${mode}`);
 
   const chat = await findTargetGroupChat(client, config, isTargetGroup);
   if (!chat) {
-    console.log('[STARTUP] Hedef grup bulunamadi.');
+    logger.warn('[STARTUP] Hedef grup bulunamadi.');
     return;
   }
 
   const groupId = chat.id?._serialized || chat.id;
   const limit = parseInt(process.env.STARTUP_FETCH_LIMIT, 10) || parseInt(process.env.HISTORY_SIZE, 10) || 15;
 
-  console.log(`[STARTUP] "${chat.name}" — son ${limit} mesaj okunuyor...`);
+  logger.info(`[STARTUP] "${chat.name}" — son ${limit} mesaj okunuyor...`);
 
   let messages;
   try {
     messages = await chat.fetchMessages({ limit });
   } catch (err) {
-    console.log('[STARTUP] Mesajlar alinamadi:', err.message);
+    logger.warn('[STARTUP] Mesajlar alinamadi:', err.message);
     return;
   }
 
@@ -97,7 +98,7 @@ async function runStartup(ctx) {
   }
 
   historyStore.setGroupHistory(groupId, entries);
-  console.log(`[STARTUP] Gecmise ${entries.length} mesaj yazildi.`);
+  logger.info(`[STARTUP] Gecmise ${entries.length} mesaj yazildi.`);
 
   const lastFromMe = [...entries].reverse().find((e) => e.fromMe);
   if (lastFromMe && engine.setLastBotReplyAt) {
@@ -105,7 +106,7 @@ async function runStartup(ctx) {
   }
 
   if (mode === 'sync') {
-    console.log('[STARTUP] sync tamam — yeni mesajlar dinleniyor.');
+    logger.info('[STARTUP] sync tamam — yeni mesajlar dinleniyor.');
     return;
   }
 
@@ -121,19 +122,19 @@ async function runStartup(ctx) {
 
     const age = now - messageTimestampMs(msg);
     if (age > maxAge) {
-      console.log(
+      logger.info(
         `[STARTUP] Son mesaj ${Math.round(age / 1000)} sn once — cok eski (limit ${maxAge / 1000} sn), cevap yok.`,
       );
       return;
     }
 
-    console.log(`[STARTUP] Son mesaja cevap kuyrugu: "${body.slice(0, 60)}${body.length > 60 ? '...' : ''}"`);
+    logger.info(`[STARTUP] Son mesaja cevap kuyrugu: "${body.slice(0, 60)}${body.length > 60 ? '...' : ''}"`);
     const authorPhone = await resolveAuthorPhone(msg);
     await engine.onIncomingMessage(msg, body, groupId, authorPhone);
     return;
   }
 
-  console.log('[STARTUP] Cevap verilecek gelen mesaj yok.');
+  logger.info('[STARTUP] Cevap verilecek gelen mesaj yok.');
 }
 
 module.exports = { runStartup, parseStartupMode, MODES };
