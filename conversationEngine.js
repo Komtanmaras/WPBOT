@@ -1,30 +1,28 @@
 const historyStore = require('./historyStore');
-const { getDecisionSystemPrompt, getReplySystemPrompt } = require('./prompts');
+const { getReplySystemPrompt } = require('./prompts');
 const { humanizeReply, clampLength } = require('./humanize');
 const { getPersonaReplyBlock } = require('./personas');
 
 const TIMING = {
   normalMin: parseInt(process.env.MIN_DELAY_MS, 10) || 15000,
-  normalMax: parseInt(process.env.MAX_DELAY_MS, 10) || 60000,
+  normalMax: parseInt(process.env.MAX_DELAY_MS, 10) || 120000,
   fastMin: parseInt(process.env.MIN_FAST_DELAY_MS, 10) || 10000,
   fastMax: parseInt(process.env.MAX_FAST_DELAY_MS, 10) || 60000,
   fastWindow: parseInt(process.env.FAST_REPLY_WINDOW_MS, 10) || 120000,
-  minGapAfterBot: parseInt(process.env.MIN_MESSAGES_BEFORE_OPTIONAL, 10) || 1,
   debounceMs: parseInt(process.env.MESSAGE_DEBOUNCE_MS, 10) || 3500,
-  decisionContextSize: parseInt(process.env.DECISION_CONTEXT_SIZE, 10) || 10,
-  replyContextSize: parseInt(process.env.REPLY_CONTEXT_SIZE, 10) || 15,
+  replyContextSize: parseInt(process.env.REPLY_CONTEXT_SIZE, 10) || 30,
   replyMaxChars: parseInt(process.env.REPLY_MAX_CHARS, 10) || 280,
 };
 
-const groupQueues = new Map();
+const queues = new Map();
 
 function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function getQueue(groupId) {
-  if (!groupQueues.has(groupId)) {
-    groupQueues.set(groupId, {
+function getQueue(chatId) {
+  if (!queues.has(chatId)) {
+    queues.set(chatId, {
       generation: 0,
       timer: null,
       debounceTimer: null,
@@ -35,107 +33,22 @@ function getQueue(groupId) {
       processing: false,
     });
   }
-  return groupQueues.get(groupId);
+  return queues.get(chatId);
 }
 
-function parseJoinDecision(content) {
-  if (!content) return true;
-  const upper = content.toUpperCase();
-  if (upper.includes('HAYIR') && !upper.includes('EVET')) return false;
-  if (upper.includes('EVET')) return true;
-  return true;
-}
-
+/**
+ * 1-1 mod: hedef kisiden gelen her mesaja cevap.
+ */
 function createEngine({ config, ai, client, helpers }) {
-  const {
-    isCalledByName,
-    isTagged,
-    isReplyToMe,
-    isFollowUpDirectedAtMe,
-    isGroupSocialOpener,
-    debug,
-  } = helpers;
+  const { debug } = helpers;
 
-  const decisionSystemPrompt = getDecisionSystemPrompt(
-    config.userName,
-    TIMING.decisionContextSize,
-  );
+  const callName =
+    (config.targetPersonName || '').trim().split(/\s+/)[0] || 'arkadasin';
   const replySystemPrompt = getReplySystemPrompt(
     config.userName,
     config.personalityNotes,
+    callName,
   );
-
-  async function shouldJoinConversation(groupId, latestBody) {
-    const contextMessages = historyStore.getLastMessages(
-      groupId,
-      TIMING.decisionContextSize,
-    );
-    const historyText = historyStore.formatForPrompt(contextMessages);
-
-    const socialHint = isGroupSocialOpener(latestBody)
-      ? '\n\n[İPUCU: Bu mesaj grup selamı/sohbet açıcısı gibi — katılmak doğal, eğilimin EVET olsun.]'
-      : '';
-
-    const messagesSinceBot = historyStore.countMessagesSinceBot(groupId);
-    const recentBotHint =
-      messagesSinceBot < 2
-        ? '\n[İPUCU: Az önce sen yazmadın veya uzun süredir suskun değilsin — katılabilirsin.]'
-        : '';
-
-    try {
-      const raw = await ai.decide([
-        { role: 'system', content: decisionSystemPrompt },
-        {
-          role: 'user',
-          content: `=== SON ${TIMING.decisionContextSize} MESAJ (eskiden yeniye) ===\n${historyText || '(henüz mesaj yok)'}\n\n=== YENİ MESAJ (karar bunun için) ===\n${latestBody}${socialHint}${recentBotHint}`,
-        },
-      ]);
-
-      const join = parseJoinDecision(raw);
-
-      if (debug) {
-        console.log(`[DEBUG] Katilim AI: "${raw}" → ${join ? 'EVET' : 'HAYIR'}`);
-      }
-
-      return join;
-    } catch (err) {
-      if (debug) console.log('[DEBUG] Katilim karari alinamadi:', err.message);
-      return false;
-    }
-  }
-
-  async function classifyMessage(msg, body, groupId) {
-    const history = historyStore.getHistory(groupId);
-
-    if (isCalledByName(body) || isTagged(msg)) {
-      return { type: 'mandatory', reason: 'ad/etiket' };
-    }
-
-    if (isFollowUpDirectedAtMe(history)) {
-      return { type: 'mandatory', reason: 'adin gectikten sonra sana yonelik soru' };
-    }
-
-    const queue = getQueue(groupId);
-    const inFastWindow =
-      queue.lastBotReplyAt > 0 && Date.now() - queue.lastBotReplyAt < TIMING.fastWindow;
-
-    const sinceBot = historyStore.countMessagesSinceBot(groupId);
-    if (sinceBot < TIMING.minGapAfterBot) {
-      return { type: 'none', reason: `az once yazildi (${sinceBot} mesaj arasi)` };
-    }
-
-    if (isGroupSocialOpener(body) && sinceBot >= 1) {
-      if (debug) console.log('[DEBUG] Grup selami — dogrudan katilim');
-      return { type: 'optional', reason: 'grup selami/sohbet' };
-    }
-
-    const join = await shouldJoinConversation(groupId, body);
-    if (!join) {
-      return { type: 'none', reason: 'AI katilmak istemiyor' };
-    }
-
-    return { type: 'optional', reason: 'muhabbete katilim' };
-  }
 
   function pickDelay(triggerType) {
     if (triggerType === 'fast') {
@@ -144,10 +57,8 @@ function createEngine({ config, ai, client, helpers }) {
     return randomBetween(TIMING.normalMin, TIMING.normalMax);
   }
 
-  function applyFastTimingIfNeeded(groupId, trigger) {
-    if (trigger.type === 'none') return trigger;
-
-    const queue = getQueue(groupId);
+  function applyFastTimingIfNeeded(chatId, trigger) {
+    const queue = getQueue(chatId);
     const inFastWindow =
       queue.lastBotReplyAt > 0 && Date.now() - queue.lastBotReplyAt < TIMING.fastWindow;
 
@@ -159,8 +70,8 @@ function createEngine({ config, ai, client, helpers }) {
     };
   }
 
-  function invalidatePending(groupId) {
-    const queue = getQueue(groupId);
+  function invalidatePending(chatId) {
+    const queue = getQueue(chatId);
     if (queue.timer) {
       clearTimeout(queue.timer);
       queue.timer = null;
@@ -168,8 +79,8 @@ function createEngine({ config, ai, client, helpers }) {
     queue.generation++;
   }
 
-  async function generateAndSend(groupId, generation) {
-    const queue = getQueue(groupId);
+  async function generateAndSend(chatId, generation) {
+    const queue = getQueue(chatId);
 
     if (generation !== queue.generation) {
       if (debug) console.log('[DEBUG] Gecersiz nesil, gonderilmiyor');
@@ -180,9 +91,9 @@ function createEngine({ config, ai, client, helpers }) {
     queue.processing = true;
 
     try {
-      const history = historyStore.getHistory(groupId);
+      const history = historyStore.getHistory(chatId);
       const contextText = historyStore.formatForPrompt(
-        historyStore.getLastMessages(groupId, TIMING.replyContextSize),
+        historyStore.getLastMessages(chatId, TIMING.replyContextSize),
       );
       const latestInHistory = history[history.length - 1];
       const replyToBody =
@@ -192,7 +103,8 @@ function createEngine({ config, ai, client, helpers }) {
 
       const authorPhone =
         (latestInHistory && !latestInHistory.fromMe && latestInHistory.authorPhone) ||
-        queue.pendingAuthorPhone;
+        queue.pendingAuthorPhone ||
+        config.targetPersonNumber;
       const personaBlock = getPersonaReplyBlock(authorPhone);
 
       if (generation !== queue.generation) return;
@@ -205,7 +117,7 @@ function createEngine({ config, ai, client, helpers }) {
         { role: 'system', content: replySystemPrompt },
         {
           role: 'user',
-          content: `Son grup mesajlari:\n${contextText || '(yok)'}\n\nEn son mesaj (buna gore cevap ver):\n${replyToBody}${personaBlock}`,
+          content: `Sohbet gecmisi (eski + yeni):\n${contextText || '(yok)'}\n\nEn son mesaj (buna gore cevap ver):\n${replyToBody}${personaBlock}`,
         },
       ]);
 
@@ -223,9 +135,9 @@ function createEngine({ config, ai, client, helpers }) {
       replyText = clampLength(replyText, TIMING.replyMaxChars);
 
       console.log(`[<] ${replyText}`);
-      await client.sendMessage(groupId, replyText);
+      await client.sendMessage(chatId, replyText);
 
-      historyStore.addMessage(groupId, {
+      historyStore.addMessage(chatId, {
         sender: config.userName,
         body: replyText,
         fromMe: true,
@@ -239,8 +151,8 @@ function createEngine({ config, ai, client, helpers }) {
     }
   }
 
-  async function scheduleReply(groupId, body, trigger) {
-    const queue = getQueue(groupId);
+  async function scheduleReply(chatId, body, trigger) {
+    const queue = getQueue(chatId);
     const generation = queue.generation;
     const delayMs = pickDelay(trigger.type);
 
@@ -250,35 +162,32 @@ function createEngine({ config, ai, client, helpers }) {
 
     queue.timer = setTimeout(() => {
       queue.timer = null;
-      generateAndSend(groupId, generation).catch((err) => {
+      generateAndSend(chatId, generation).catch((err) => {
         console.error('[HATA] Gonderim:', err.message);
       });
     }, delayMs);
   }
 
-  async function processAfterDebounce(groupId) {
-    const queue = getQueue(groupId);
-    const msg = queue.pendingMsg;
+  async function processAfterDebounce(chatId) {
+    const queue = getQueue(chatId);
     const body = queue.pendingBody;
 
     if (!body) return;
 
-    invalidatePending(groupId);
+    invalidatePending(chatId);
 
-    let trigger = await classifyMessage(msg, body, groupId);
-    trigger = applyFastTimingIfNeeded(groupId, trigger);
+    let trigger = { type: 'mandatory', reason: '1-1 her mesaj' };
+    trigger = applyFastTimingIfNeeded(chatId, trigger);
 
     if (debug) {
       console.log(`[DEBUG] Tetik: ${trigger.type} (${trigger.reason}) | ${body}`);
     }
 
-    if (trigger.type === 'none') return;
-
-    await scheduleReply(groupId, body, trigger);
+    await scheduleReply(chatId, body, trigger);
   }
 
-  function onIncomingMessage(msg, body, groupId, authorPhone = null) {
-    const queue = getQueue(groupId);
+  function onIncomingMessage(msg, body, chatId, authorPhone = null) {
+    const queue = getQueue(chatId);
     queue.pendingMsg = msg;
     queue.pendingBody = body;
     queue.pendingAuthorPhone = authorPhone;
@@ -289,19 +198,19 @@ function createEngine({ config, ai, client, helpers }) {
 
     queue.debounceTimer = setTimeout(() => {
       queue.debounceTimer = null;
-      processAfterDebounce(groupId).catch((err) => {
+      processAfterDebounce(chatId).catch((err) => {
         console.error('[HATA] Islem:', err.message);
       });
     }, TIMING.debounceMs);
   }
 
-  function onBotSentMessage(groupId) {
-    const queue = getQueue(groupId);
+  function onBotSentMessage(chatId) {
+    const queue = getQueue(chatId);
     queue.lastBotReplyAt = Date.now();
   }
 
-  function setLastBotReplyAt(groupId, timeMs) {
-    const queue = getQueue(groupId);
+  function setLastBotReplyAt(chatId, timeMs) {
+    const queue = getQueue(chatId);
     queue.lastBotReplyAt = timeMs || Date.now();
   }
 

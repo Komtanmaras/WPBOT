@@ -11,13 +11,14 @@ const historyStore = require('./historyStore');
 const { createEngine, TIMING } = require('./conversationEngine');
 const { createAiClient, loadAiOptionsFromEnv } = require('./aiClient');
 const { normalizePhone } = require('./personas');
-const { runStartup, parseStartupMode } = require('./startup');
+const { runStartup, parseStartupMode, phonesMatch, resolveIdToPhone } = require('./startup');
 
-historyStore.setMaxMessages(parseInt(process.env.HISTORY_SIZE, 10) || 15);
+historyStore.setMaxMessages(parseInt(process.env.HISTORY_SIZE, 10) || 50);
 
 const config = {
-  targetGroupName: process.env.TARGET_GROUP_NAME,
-  targetGroupId: process.env.TARGET_GROUP_ID,
+  targetPersonNumber: normalizePhone(process.env.TARGET_PERSON_NUMBER || ''),
+  targetPersonName: process.env.TARGET_PERSON_NAME || 'Hasan Burak Koç',
+  targetPersonLid: (process.env.TARGET_PERSON_LID || '').trim(),
   userName: process.env.USER_NAME || 'Kullanici',
   nameAliases: (process.env.USER_NAME_ALIASES || '')
     .split(',')
@@ -34,148 +35,37 @@ const deepseek = new OpenAI({
   apiKey: config.deepSeekApiKey,
 });
 
-let myWid = null;
-let myPhoneUser = null;
 let engine = null;
-
-function getNameVariants() {
-  const names = new Set([config.userName, ...config.nameAliases]);
-  const base = config.userName.toLocaleLowerCase('tr-TR');
-  names.add(base);
-  names.add(
-    base
-      .replace(/ş/g, 's')
-      .replace(/ı/g, 'i')
-      .replace(/ğ/g, 'g')
-      .replace(/ü/g, 'u')
-      .replace(/ö/g, 'o')
-      .replace(/ç/g, 'c'),
-  );
-  return [...names].filter(Boolean);
-}
-
-function isCalledByName(text) {
-  if (!text) return false;
-  const lower = text.toLocaleLowerCase('tr-TR');
-  return getNameVariants().some((name) => lower.includes(name.toLocaleLowerCase('tr-TR')));
-}
-
-const PERSONAL_QUESTION_PATTERNS = [
-  'nasılsın',
-  'nasilsin',
-  'naber',
-  'nbr',
-  'ne haber',
-  'napiyorsun',
-  'ne yapıyorsun',
-  'ne yapıyon',
-  'iyi misin',
-  'nasılsınız',
-  'ne var ne yok',
-  'naber nasılsın',
-];
-
-function isPersonalQuestion(text) {
-  if (!text) return false;
-  const lower = text.toLocaleLowerCase('tr-TR');
-  return PERSONAL_QUESTION_PATTERNS.some((p) => lower.includes(p));
-}
-
-const GROUP_SOCIAL_PATTERNS = [
-  'naber',
-  'nbr',
-  'selam',
-  'selamlar',
-  'günaydın',
-  'gunaydin',
-  'iyi geceler',
-  'iyi akşamlar',
-  'arkadaşlar',
-  'arkadaslar',
-  'millete',
-  'herkese',
-  'nasılsınız',
-  'nasilsiniz',
-  'ne haber',
-  'ne var ne yok',
-  'naber millet',
-  'naber arkadaşlar',
-];
-
-function isGroupSocialOpener(text) {
-  if (!text) return false;
-  const lower = text.toLocaleLowerCase('tr-TR').trim();
-  if (lower.length > 120) return false;
-  if (isCalledByName(text)) return true;
-  return GROUP_SOCIAL_PATTERNS.some((p) => lower.includes(p));
-}
-
-function isFollowUpDirectedAtMe(history) {
-  if (!history.length) return false;
-  const latest = history[history.length - 1];
-  if (!isPersonalQuestion(latest?.body)) return false;
-
-  const windowMs = 120000;
-  const now = Date.now();
-
-  for (let i = history.length - 2; i >= 0 && i >= history.length - 6; i--) {
-    const m = history[i];
-    if (m.fromMe) continue;
-    if (m.timestamp && now - m.timestamp > windowMs) break;
-    if (isCalledByName(m.body)) return true;
-  }
-  return false;
-}
-
-function isTagged(msg) {
-  if (!myWid || !msg.mentionedIds?.length) return false;
-  return msg.mentionedIds.some(
-    (id) => id === myWid || (myPhoneUser && id.includes(myPhoneUser)),
-  );
-}
-
-async function isReplyToMe(msg) {
-  if (!msg.hasQuotedMsg) return false;
-  try {
-    const quoted = await msg.getQuotedMessage();
-    return quoted?.fromMe === true;
-  } catch {
-    return false;
-  }
-}
-
-function isTargetGroup(chat) {
-  if (config.targetGroupId) {
-    const chatId = chat.id?._serialized || chat.id;
-    if (chatId === config.targetGroupId) return true;
-  }
-  if (!config.targetGroupName) return false;
-  const chatName = (chat.name || '').trim().toLowerCase();
-  const targetName = config.targetGroupName.trim().toLowerCase();
-  return chatName === targetName;
-}
 
 async function getSenderLabel(msg) {
   if (msg.fromMe) return config.userName;
   try {
     const contact = await msg.getContact();
-    return contact.pushname || contact.name || contact.number || 'Biri';
+    return (
+      contact.pushname ||
+      contact.name ||
+      config.targetPersonName ||
+      contact.number ||
+      'Biri'
+    );
   } catch {
-    return 'Biri';
+    return config.targetPersonName || 'Biri';
   }
 }
 
-async function resolveAuthorPhone(msg) {
-  const authorId = msg.author || msg._data?.participant || msg._data?.author;
-  if (!authorId) return null;
-
-  if (authorId.endsWith('@c.us') || authorId.endsWith('@s.whatsapp.net')) {
-    return normalizePhone(authorId.split('@')[0]);
+/**
+ * DM'de gonderen telefonu coz (from / LID / contact).
+ */
+async function resolveChatPhone(msg) {
+  // Ozel sohbette mesaj genelde msg.from = numara@c.us
+  const from = msg.from || '';
+  if (from.endsWith('@c.us') || from.endsWith('@s.whatsapp.net')) {
+    return normalizePhone(from.split('@')[0]);
   }
 
-  if (authorId.includes('@lid')) {
+  if (from.includes('@lid')) {
     try {
-      const results = await client.getContactLidAndPhone([authorId]);
+      const results = await client.getContactLidAndPhone([from]);
       const pn = results[0]?.pn;
       if (pn) return normalizePhone(pn.split('@')[0]);
     } catch {
@@ -184,14 +74,24 @@ async function resolveAuthorPhone(msg) {
   }
 
   try {
-    const contact = await client.getContactById(authorId);
+    const contact = await msg.getContact();
     if (contact?.number) return normalizePhone(contact.number);
     if (contact?.id?.user) return normalizePhone(contact.id.user);
   } catch {
     // devam
   }
 
-  return normalizePhone(authorId.split('@')[0]);
+  const authorId = msg.author || msg._data?.author;
+  if (authorId) {
+    return normalizePhone(String(authorId).split('@')[0]);
+  }
+
+  return normalizePhone(from.split('@')[0]);
+}
+
+function isPrivateChat(msg) {
+  const id = msg.from || '';
+  return !id.endsWith('@g.us') && !id.endsWith('@broadcast');
 }
 
 const client = new Client({
@@ -209,9 +109,6 @@ client.on('qr', (qr) => {
 });
 
 client.on('ready', async () => {
-  myWid = client.info?.wid?._serialized;
-  myPhoneUser = client.info?.wid?.user;
-
   const ai = createAiClient(deepseek, loadAiOptionsFromEnv(config));
 
   engine = createEngine({
@@ -219,43 +116,32 @@ client.on('ready', async () => {
     ai,
     client,
     helpers: {
-      isCalledByName,
-      isTagged,
-      isReplyToMe,
-      isFollowUpDirectedAtMe,
-      isGroupSocialOpener,
       debug: config.debug,
     },
   });
 
   console.log(`[BOT] Baglandi. Rol: ${config.userName}`);
-  console.log(`[BOT] Grup: ${config.targetGroupName || config.targetGroupId}`);
+  console.log(
+    `[BOT] Mod: 1-1 | Hedef: ${config.targetPersonName} (${config.targetPersonNumber})`,
+  );
   console.log(
     `[BOT] Gecikme normal: ${TIMING.normalMin / 1000}s - ${TIMING.normalMax / 1000}s | hizli: ${TIMING.fastMin / 1000}s - ${TIMING.fastMax / 1000}s`,
   );
-
-  try {
-    const chats = await client.getChats();
-    chats
-      .filter((c) => c.isGroup)
-      .forEach((g) => console.log(`  - "${g.name}" | ${g.id?._serialized || g.id}`));
-  } catch (err) {
-    console.log('[BOT] Grup listesi alinamadi:', err.message);
-  }
-
   console.log(`[BOT] Baslangic modu: ${parseStartupMode()}`);
+
+  // Store hazir olsun diye kisa bekle
+  await new Promise((r) => setTimeout(r, 4000));
 
   try {
     await runStartup({
       client,
       config,
       engine,
-      isTargetGroup,
       getSenderLabel,
-      resolveAuthorPhone,
+      resolveChatPhone,
     });
   } catch (err) {
-    console.error('[STARTUP] Hata:', err.message);
+    console.error('[STARTUP] Hata:', err && (err.stack || err.message || err));
   }
 });
 
@@ -267,47 +153,84 @@ client.on('disconnected', (reason) => {
   console.log('[BOT] Baglanti koptu:', reason);
 });
 
-async function processGroupMessage(msg) {
-  if (!msg.from.endsWith('@g.us')) return;
-
-  const chat = await msg.getChat();
-  if (!isTargetGroup(chat)) return;
+async function processPrivateMessage(msg) {
+  // Grup / status yok
+  if (msg.from?.endsWith('@g.us') || msg.from?.endsWith('@broadcast')) {
+    if (config.debug) console.log('[DEBUG] Grup/status yok sayildi');
+    return;
+  }
 
   const body = msg.body?.trim();
-  const groupId = msg.from;
+  // fromMe: sohbet karsi tarafta (to), gelen: from
+  const chatId = msg.fromMe ? msg.to || msg.from : msg.from;
+  if (!chatId || chatId.endsWith('@g.us')) return;
+
+  // LID / telefon coz
+  let resolvedPhone = await resolveIdToPhone(client, chatId);
+  if (!resolvedPhone && !msg.fromMe) {
+    resolvedPhone = await resolveChatPhone(msg);
+  }
+
+  // Env LID eslesmesi
+  const lidUser = String(chatId).split('@')[0];
+  const envLid = (config.targetPersonLid || '').replace(/@lid$/i, '');
+  const lidMatch =
+    envLid && (lidUser === envLid || String(chatId) === config.targetPersonLid);
+
+  const isTarget =
+    lidMatch ||
+    phonesMatch(resolvedPhone, config.targetPersonNumber) ||
+    phonesMatch(lidUser, config.targetPersonNumber);
+
+  if (!isTarget) {
+    if (config.debug) {
+      console.log(
+        `[DEBUG] Hedef degil, atlandi: ${resolvedPhone || chatId}`,
+      );
+    }
+    return;
+  }
 
   if (body) {
     const sender = await getSenderLabel(msg);
-    const authorPhone = msg.fromMe ? null : await resolveAuthorPhone(msg);
-    historyStore.addMessage(groupId, {
+    historyStore.addMessage(chatId, {
       sender,
       body,
       fromMe: msg.fromMe,
-      authorPhone,
+      authorPhone: msg.fromMe ? null : resolvedPhone || config.targetPersonNumber,
       timestamp: Date.now(),
     });
   }
 
   if (msg.fromMe) {
-    if (body && engine) engine.onBotSentMessage(groupId);
+    if (body && engine) engine.onBotSentMessage(chatId);
     return;
   }
 
   if (!body) return;
   if (!engine) return;
 
-  // Yeni mesaj gelince bekleyen cevabi iptal et, son mesaja gore yeniden planla
-  const authorPhone = await resolveAuthorPhone(msg);
-  await engine.onIncomingMessage(msg, body, groupId, authorPhone);
+  await engine.onIncomingMessage(
+    msg,
+    body,
+    chatId,
+    resolvedPhone || config.targetPersonNumber,
+  );
 }
 
 client.on('message_create', async (msg) => {
   try {
-    await processGroupMessage(msg);
+    await processPrivateMessage(msg);
   } catch (error) {
     console.error('[HATA]', error.message);
   }
 });
 
-console.log('[BOT] Baslatiliyor...');
+if (!config.targetPersonNumber && !config.targetPersonLid) {
+  console.error('[HATA] TARGET_PERSON_NUMBER veya TARGET_PERSON_LID .env icinde tanimli olmali.');
+  process.exit(1);
+}
+
+console.log('[BOT] Baslatiliyor (1-1 mod)...');
+console.log(`[BOT] Hedef: ${config.targetPersonName} / ${config.targetPersonNumber}`);
 client.initialize();

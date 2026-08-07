@@ -45,11 +45,15 @@ function getPersonaReplyBlock(phone) {
   const persona = findPersona(phone);
   if (!persona) return '';
 
+  if (persona.mode === 'troll') {
+    return `\n\n=== KONUSMA PARTNERI: ${persona.name} (FULL TASSAK) ===\n${persona.hint}\n• Gecmise dair soru varsa: dogru anlatma, sacmala.\n• Normal soruya kisa cevap OK.`;
+  }
+
   if (persona.mode === 'normal') {
     return `\n\n=== SON MESAJI ATAN: ${persona.name} ===\n${persona.hint}`;
   }
 
-  return `\n\n=== SON MESAJI ATAN: ${persona.name} (arkadaşça takıl, her cevapta değil) ===\n${persona.hint}\n• Bu mesaja uygunsa ara sıra (yaklaşık her 3-4 cevapta bir) kısa bir göndermeli laf ekle; zorlama.\n• Aşağılayıcı veya kırıcı olma; grup içi şaka tonu.`;
+  return `\n\n=== SON MESAJI ATAN: ${persona.name} (arkadaşça takıl, her cevapta değil) ===\n${persona.hint}\n• Bu mesaja uygunsa ara sıra kısa bir göndermeli laf ekle; zorlama.`;
 }
 
 function getGroupPersonasSummary() {
