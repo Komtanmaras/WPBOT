@@ -1,120 +1,159 @@
-# WPBOT - WhatsApp DeepSeek AI Bot
+# WPBOT — WhatsApp 1-1 DeepSeek Bot
 
-Hedef WhatsApp grubunda, adinla seslenildiginde veya etiketlendiginde DeepSeek ile kisa ve dogal cevap veren bot.
+Belirli bir kişiyle **bire bir (DM)** sohbette, DeepSeek AI ile kısa ve doğal (veya absürt / kara mizah) cevap veren bot.
 
-## Ozellikler
+Grup mesajlarını dinlemez; sadece `.env` içindeki hedef kişiyle özel sohbete cevap verir.
 
-- Adinla veya @etiket: her zaman cevap planlar
-- Genel sohbet (naber arkadaslar vb.): AI son 15 mesaja bakip ara sira katilir
-- Cevap hazirlanirken yeni mesaj gelirse plan iptal, son mesaja gore yeniden yazilir
-- Sen yazdiktan sonra 2 dk icinde sana yanit/alinti gelirse: 10-45 sn icinde hizli cevap
-- Normal mod: 15 sn - 10 dk arasi rastgele gecikme
-- Son 15 mesaj `data/group-history.json` icinde
-- DeepSeek prompt cache: sabit system prompt ile maliyet/latency optimizasyonu (`DEBUG=true` ile `[CACHE]` logu)
-- Insanî cevap: zengin prompt + hafif post-processing (`humanize.js`)
-- Sizi taklit ederek dogal, kisa cevaplar
-- Oturumu kaydeder, tekrar baslatmada QR taramaya gerek kalmaz
+## Özellikler
+
+- **1-1 mod:** Sadece hedef kişinin DM mesajlarına cevap
+- Hedef eşleştirme: telefon numarası (`TARGET_PERSON_NUMBER`) ve/veya LID (`TARGET_PERSON_LID`)
+- Hedef kişiden gelen **her mesaja** cevap planlanır (grup “katılayım mı?” kararı yok)
+- Cevap beklerken yeni mesaj gelirse plan iptal edilir, son mesaja göre yeniden yazılır
+- Sen yazdıktan sonra 2 dk içinde yanıt gelirse **hızlı cevap** penceresi (varsayılan 10–60 sn)
+- Normal gecikme: rastgele 15 sn – 2 dk
+- Ardışık mesajlar debounce ile birleştirilir
+- Sohbet geçmişi `data/group-history.json` içinde saklanır
+- Açılışta DM listesi + `TARGET_PERSON_LID` bulma yardımı
+- Oturum kaydı: tekrar başlatmada genelde QR gerekmez
+- Persona notları: `data/personas.json` + `PERSONALITY_NOTES`
 
 ## Gereksinimler
 
-- Node.js v18.0.0 veya uzeri
-- DeepSeek API anahtari (https://platform.deepseek.com)
-- Bir WhatsApp hesabi
+- Node.js **v18+**
+- [DeepSeek API](https://platform.deepseek.com) anahtarı
+- Bir WhatsApp hesabı (WhatsApp Web ile giriş)
 
 ## Kurulum
 
-1. Projeyi klonlayin veya dosyalari indirin:
-
 ```bash
 cd WPBOT
-```
-
-2. Bagimliliklari yukleyin:
-
-```bash
 npm install
+cp .env.example .env   # Windows: copy .env.example .env
 ```
 
-3. `.env` dosyasini olusturun:
+`.env` dosyasını düzenle (en az API key + hedef kişi).
 
-```bash
-cp .env.example .env
-```
+## .env ayarları
 
-4. `.env` dosyasini duzenleyin:
+### Zorunlu / önemli
 
-| Degisken | Aciklama | Ornek |
+| Değişken | Açıklama | Örnek |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | DeepSeek API anahtariniz | `sk-xxxxxxxxxxxx` |
-| `TARGET_GROUP_NAME` | Hedef WhatsApp grubunun adi | `Arkadaslar` |
-| `USER_NAME` | Taklit edilecek kisi adi (seslenilince cevap) | `Ahmet` |
-| `USER_NAME_ALIASES` | Ek isimler (virgulle) | `Maras,maraş` |
-| `TARGET_GROUP_ID` | Grup ID (tercih edilir) | `120363...@g.us` |
-| `DEEPSEEK_MODEL` | DeepSeek modeli (opsiyonel) | `deepseek-v4-flash` |
-| `MIN_DELAY_MS` | Min gecikme ms (opsiyonel) | `15000` |
-| `MAX_DELAY_MS` | Max gecikme ms (opsiyonel) | `600000` |
-| `REPLY_MAX_TOKENS` | Cevap token limiti | `150` |
-| `REPLY_TEMPERATURE` | Cevap yaratıcılığı (0-1) | `0.9` |
-| `PERSONALITY_NOTES` | Ek kişilik notları | `gece uyku modunda` |
-| `DEBUG` | Detaylı log + cache metrikleri | `true` |
+| `DEEPSEEK_API_KEY` | DeepSeek API anahtarı | `sk-...` |
+| `TARGET_PERSON_NUMBER` | Hedef telefon (ülke koduyla, boşluksuz) | `905469318582` |
+| `TARGET_PERSON_NAME` | Hedef isim (log + hitap) | `Hasan Burak Koç` |
+| `TARGET_PERSON_LID` | WhatsApp LID id (telefon eşleşmezse) | `1788...@lid` |
+| `USER_NAME` | Botun taklit ettiği isim | `Maraş` |
+| `USER_NAME_ALIASES` | İsim varyantları (virgülle) | `Maraş,Maras,maraş` |
 
-## Kullanim
+`TARGET_PERSON_NUMBER` **veya** `TARGET_PERSON_LID` tanımlı olmalı.
+
+### Kişilik / model
+
+| Değişken | Açıklama |
+|---|---|
+| `PERSONALITY_NOTES` | Prompta eklenen kişilik notları |
+| `DEEPSEEK_MODEL` | Ana model (varsayılan `deepseek-v4-flash`) |
+| `DEEPSEEK_NON_THINKING_MODEL` | Thinking boş dönerse yedek model |
+| `REPLY_TEMPERATURE` | Yaratıcılık (1-1 troll için yüksek olabilir, örn. `1.1`) |
+| `REPLY_MAX_CHARS` | WhatsApp’a giden max karakter |
+| `DEBUG` | `true` ise ek debug logları |
+
+### Zamanlama
+
+| Değişken | Varsayılan | Açıklama |
+|---|---|---|
+| `MIN_DELAY_MS` / `MAX_DELAY_MS` | 15000 / 120000 | Normal cevap gecikmesi |
+| `FAST_REPLY_WINDOW_MS` | 120000 | Sen yazdıktan sonra “hızlı mod” süresi |
+| `MIN_FAST_DELAY_MS` / `MAX_FAST_DELAY_MS` | 10000 / 60000 | Hızlı mod gecikmesi |
+| `MESSAGE_DEBOUNCE_MS` | 3500 | Ardışık mesajları birleştirme |
+| `HISTORY_SIZE` | 50 | Saklanan geçmiş uzunluğu |
+| `REPLY_CONTEXT_SIZE` | 30 | AI’ya verilen son mesaj sayısı |
+| `STARTUP_FETCH_LIMIT` | 50 | Açılışta çekilecek mesaj sayısı |
+
+Kişiye özel roast/troll ipuçları için `data/personas.json` dosyasını da düzenleyebilirsin.
+
+## Kullanım
 
 ```bash
 npm start
 ```
 
-Terminalde bir QR kod goruntulenecektir. Telefonunuzdan WhatsApp > Bagli Cihazlar menusunden bu QR kodu taratin.
+1. Terminalde QR kod çıkar.
+2. Telefonda **WhatsApp → Bağlı Cihazlar** ile QR’ı tara.
+3. Bağlanınca bot hedef kişiyi arar ve (moduna göre) geçmişi yükler / cevap planlar.
 
-Baglanti basarili oldugunda bot calismaya baslayacaktir.
+Başlangıçta konsolda **`[LISTE]`** ile özel sohbetler listelenir; eşleşenler `>>>` ile işaretlenir. Liste ayrıca `data/dm-list.txt` dosyasına yazılır.
 
-## PM2 ve guncelleme sonrasi baslangic
+Telefon eşleşmiyorsa listedeki `id` değerini `.env` içine koy:
 
-Restart sirasinda kacirilan mesajlar icin `STARTUP_MODE` kullanin:
+```env
+TARGET_PERSON_LID=12345678901234@lid
+```
+
+## Başlangıç modları (`STARTUP_MODE`)
+
+PM2 restart / güncelleme sonrası kaçırılan mesajlar için:
 
 | Mod | Ne yapar |
 |-----|----------|
-| `idle` | Sadece yeni mesajlari dinler (varsayilan) |
-| `sync` | Son mesajlari gecmise yazar, cevap vermez |
-| `reply_last` | Son gelen mesaji okur, normal kurallarla cevap planlar |
-
-**.env ile (pm2 restart icin):**
+| `idle` | Sadece yeni mesajları dinler |
+| `sync` | Son mesajları geçmişe yazar, cevap vermez |
+| `reply_last` | Son gelen mesajı okur ve normal kurallarla cevap planlar |
 
 ```env
 STARTUP_MODE=reply_last
 STARTUP_MAX_AGE_MS=600000
 ```
 
-```bash
-pm2 restart bot.js --update-env
-```
+`STARTUP_MAX_AGE_MS`: `reply_last` için son mesaj bu süreden (ms) eskiyse cevap yok (varsayılan 10 dk).
 
 **Tek seferlik:**
 
 ```bash
+npm run start:sync
 npm run start:reply-last
+# veya
+node bot.js --startup idle
+node bot.js --startup sync
 node bot.js --startup reply_last
 ```
 
-**PM2 ecosystem:**
+**PM2 örneği:**
 
 ```bash
-pm2 start ecosystem.config.cjs --env restart
+pm2 start bot.js --name wbot
 pm2 restart wbot --update-env
 ```
 
-## Mesaj algilanmiyorsa
+`ecosystem.config.cjs` varsa:
 
-1. Botu baslatin; terminalde tum gruplarin adi ve ID'si listelenir.
-2. `.env` icinde `DEBUG=true` yapin ve tekrar baslatin. Gelen her grup mesaji icin eslesme bilgisi gorunur.
-3. `TARGET_GROUP_NAME` grubun adiyla birebir eslesmeli (bosluklar dahil). Daha guvenilir yol: `TARGET_GROUP_ID` kullanmak (listedeki ID'yi kopyalayin).
-4. `TARGET_GROUP_ID` kullanmak en guvenilir yoldur.
+```bash
+pm2 start ecosystem.config.cjs --env restart
+```
 
-## Onemli Uyarilar
+## Hedef kişi bulunamazsa
 
-- Bu botu kullanirken WhatsApp hesabinizin kapatilma riski bulunmaktadir. Kendi sorumlulugunuzda kullanin.
-- Uzun sureli ve yuksek hacimli kullanimda, WhatsApp Web oturumunuz bloke edilebilir.
-- Botunuzun dogal gorunmesi icin gecikme araligini cok dusuk ayarlamayin.
+1. Botu bir kez çalıştır; `[LISTE]` / `data/dm-list.txt` çıktısına bak.
+2. Hedef sohbetin `id` değerini `TARGET_PERSON_LID` olarak yaz.
+3. `TARGET_PERSON_NUMBER` ülke koduyla, boşluksuz olsun (`905xxxxxxxxx`).
+4. `DEBUG=true` yapıp neden atlandığını logdan kontrol et.
+5. Hedef kişiyle WhatsApp’ta en az bir kez sohbet açılmış olmalı (DM listesinde görünür).
+
+## Nasıl çalışır (kısa)
+
+1. Gelen DM hedef kişiye ait mi diye bakılır (LID / telefon).
+2. Mesaj geçmişe eklenir; debounce sonrası cevap planlanır.
+3. Rastgele gecikme (veya hızlı pencere) sonrası DeepSeek cevap üretir.
+4. Cevap insanileştirilip (`humanize.js`) karakter limitiyle gönderilir.
+5. Plan beklerken yeni mesaj gelirse bekleyen cevap iptal edilir.
+
+## Önemli uyarılar
+
+- WhatsApp hesabının kapanma / kısıtlanma riski vardır; kendi sorumluluğunda kullan.
+- Çok düşük gecikme ve yüksek mesaj hacmi ban riskini artırır.
+- Bu araç resmi WhatsApp Business API değildir (`whatsapp-web.js` kullanır).
 
 ## Lisans
 
