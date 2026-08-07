@@ -4,3 +4,5 @@ session.json
 .wwebjs_auth/
 .wwebjs_cache/
 data/group-history.json
+data/personas.json
+data/dm-list.txt

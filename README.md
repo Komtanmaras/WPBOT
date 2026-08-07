@@ -16,7 +16,7 @@ Grup mesajlarını dinlemez; sadece `.env` içindeki hedef kişiyle özel sohbet
 - Sohbet geçmişi `data/group-history.json` içinde saklanır
 - Açılışta DM listesi + `TARGET_PERSON_LID` bulma yardımı
 - Oturum kaydı: tekrar başlatmada genelde QR gerekmez
-- Persona notları: `data/personas.json` + `PERSONALITY_NOTES`
+- Persona notları: yerel `data/personas.json` (örnek: `personas.example.json`) + `PERSONALITY_NOTES`
 
 ## Gereksinimler
 
@@ -30,9 +30,12 @@ Grup mesajlarını dinlemez; sadece `.env` içindeki hedef kişiyle özel sohbet
 cd WPBOT
 npm install
 cp .env.example .env   # Windows: copy .env.example .env
+cp data/personas.example.json data/personas.json
 ```
 
-`.env` dosyasını düzenle (en az API key + hedef kişi).
+`.env` ve `data/personas.json` dosyalarını kendi bilgilerinle düzenle.
+
+> **Gizlilik:** Gerçek `data/personas.json`, `.env`, sohbet geçmişi ve DM listesi git’e **girmez** (`.gitignore`). Repoda yalnızca örnek dosyalar vardır.
 
 ## .env ayarları
 
@@ -41,9 +44,9 @@ cp .env.example .env   # Windows: copy .env.example .env
 | Değişken | Açıklama | Örnek |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek API anahtarı | `sk-...` |
-| `TARGET_PERSON_NUMBER` | Hedef telefon (ülke koduyla, boşluksuz) | `905469318582` |
-| `TARGET_PERSON_NAME` | Hedef isim (log + hitap) | `Hasan Burak Koç` |
-| `TARGET_PERSON_LID` | WhatsApp LID id (telefon eşleşmezse) | `1788...@lid` |
+| `TARGET_PERSON_NUMBER` | Hedef telefon (ülke koduyla, boşluksuz) | `905551112233` |
+| `TARGET_PERSON_NAME` | Hedef isim (log + hitap) | `Ali Veli` |
+| `TARGET_PERSON_LID` | WhatsApp LID id (telefon eşleşmezse) | `1234...@lid` |
 | `USER_NAME` | Botun taklit ettiği isim | `Maraş` |
 | `USER_NAME_ALIASES` | İsim varyantları (virgülle) | `Maraş,Maras,maraş` |
 
@@ -72,7 +75,48 @@ cp .env.example .env   # Windows: copy .env.example .env
 | `REPLY_CONTEXT_SIZE` | 30 | AI’ya verilen son mesaj sayısı |
 | `STARTUP_FETCH_LIMIT` | 50 | Açılışta çekilecek mesaj sayısı |
 
-Kişiye özel roast/troll ipuçları için `data/personas.json` dosyasını da düzenleyebilirsin.
+## Personas (`data/personas.json`)
+
+Hedef (veya bilinen) kişiye özel prompt ipuçları. Bot, mesajın telefonuna göre eşleşen persona’yı DeepSeek promptuna ekler.
+
+**Kurulum:**
+
+```bash
+cp data/personas.example.json data/personas.json
+# Windows: copy data\personas.example.json data\personas.json
+```
+
+Dosya yoksa bot çalışır; sadece kişiye özel `hint` eklenmez (`PERSONALITY_NOTES` yine geçerli).
+
+### Format
+
+```json
+{
+  "personas": [
+    {
+      "phones": ["905551112233", "5551112233"],
+      "name": "Ali",
+      "mode": "troll",
+      "hint": "Bu kişiye nasıl davranılacağına dair kısa not..."
+    }
+  ]
+}
+```
+
+| Alan | Zorunlu | Açıklama |
+|---|---|---|
+| `phones` | evet | Eşleşecek numaralar (ülke kodlu + kısa form). LID user kısmı da eklenebilir. |
+| `name` | evet | Hitap / log adı |
+| `mode` | evet | `troll` \| `roast` \| `normal` |
+| `hint` | evet | AI’ya giden kişi notu (Türkçe, kısa ve net) |
+
+**`mode` farkı:**
+
+- `troll` — full taşşak; geçmiş sorularında saçmalama vurgusu
+- `roast` — arkadaşça ara sıra takılma (her mesajda değil)
+- `normal` — düz samimi muhabbet, dalga yok
+
+1-1 kullanımda genelde tek persona yeter: hedefinin numarasını `phones` içine yaz, `mode` + `hint`’i ayarla. Örnek dosyadaki Ali / Ayşe / Mehmet uydurmadır.
 
 ## Kullanım
 
